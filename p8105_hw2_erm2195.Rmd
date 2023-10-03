@@ -5,4 +5,74 @@ date: "2023-10-02"
 ---
 
 # Problem 1
+Goal: merging the FiveThirtyEight `pols-month.csv`, `unemployment.csv`, and `snp.csv` data into a single data frame using year and month as keys across datasets.
+
+## Loading Libraries
+First, loading the `tidyverse` library for use throughout the homework.
+```{r library}
+library(tidyverse)
+```
+
+## Cleaning `pols-month` Data
+Now, cleaning the data in `pols-month.csv`:
+
+* Using separate() to break up the variable mon into integer variables year, month, and day
+* Replacing month number with month name
+* Creating a president variable taking values gop and dem
+* Removing prez_dem and prez_gop
+* Removing the day variable
+
+```{r cleaning pols-month}
+
+pols_month = 
+  read_csv("Data/pols-month.csv") |> 
+  janitor::clean_names() |> 
+  separate(mon, into = c("year", "month", "day"), sep = "-") |> 
+  mutate(
+    year = as.integer(year),
+    month = as.integer(month),
+    day = as.integer(day),
+    president = ifelse(prez_dem > 0 , "dem", "gop"),
+    month = case_match(
+      month,
+      1 ~ "January",
+      2 ~ "February",
+      3 ~ "March",
+      4 ~ "April",
+      5 ~ "May",
+      6 ~ "June",
+      7 ~ "July",
+      8 ~ "August",
+      9 ~ "September",
+      10 ~ "October",
+      11 ~ "November",
+      12 ~ "December")
+    ) |> 
+  select(-starts_with("prez"), -day)
+
+```
+
+## Cleaning `snp` Data
+Second, cleaning the data in `snp.csv` using a similar process:
+
+* Using separate() to break up the variable mon into integer variables year, month, and day
+* Replacing month number with month name
+* Creating a president variable taking values gop and dem
+* Removing prez_dem and prez_gop
+* Removing the day variable
+* Arrange according to year and month, and with those as the leading columns
+
+```{r}
+
+```
+
+## Cleaning `unemployment` Data
+Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
+
+## Merging the Data Sets
+Join the datasets by merging snp into pols, and merging unemployment into the result.
+
+## Describing the Data Sets
+Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
+
 
