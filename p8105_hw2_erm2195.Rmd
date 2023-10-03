@@ -198,16 +198,15 @@ gwynnda =
   )
 ```
 
-## Merging the Data Sets
+## Merging the Datasets
 
-Add a column identifying the relevant dataset
-
-Combine the Professor Trash Wheel and Gwynnda data sets with the Mr. Trash Wheel dataset to produce a single dataset. 
-
-Joining the datasets by merging `snp` into `pols`, and then merging `unemployment` into the result. The resulting dataset is called `data_538`
+Now, adding a column to each dataset to identify the dataset name (to help with identification post-merge). Then, combining the `professor` and `gwynnda` datasets with the `mister` dataset to produce a single dataset.
 ```{r}
-
+mister = mutate(mister, dataset = "mister")
+professor = mutate(professor, dataset = "professor")
+gwynnda = mutate(gwynnda, dataset = "gwynnda")
 ```
+
 
 
 
