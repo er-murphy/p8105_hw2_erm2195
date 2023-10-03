@@ -22,9 +22,9 @@ Now, cleaning the data in `pols-month.csv`:
 * Removing `prez_dem` and `prez_gop` variables
 * Removing the `day` variable
 
-```{r cleaning pols_month}
+```{r cleaning_pols}
 
-pols_month = 
+pols = 
   read_csv("Data/pols-month.csv") |> 
   janitor::clean_names() |> 
   separate(mon, into = c("year", "month", "day"), sep = "-") |> 
@@ -33,8 +33,7 @@ pols_month =
     month = as.integer(month),
     day = as.integer(day),
     president = ifelse(prez_dem > 0 , "dem", "gop"),
-    month = case_match(
-      month,
+    month = case_match(month,
       1 ~ "January",
       2 ~ "February",
       3 ~ "March",
@@ -58,10 +57,10 @@ Second, cleaning the data in `snp.csv` using a similar process:
 * Using separate() to break up the variable `date` into integer variables `year`, `month`, and `day`
 * Converting the `year` variable into a 4 digit value
 * Replacing month number with month name
-* Reganizing so that year and month are the leading columns
+* Reorganizing so that year and month are the leading columns
 * Removing the `day` variable
 
-```{r cleaning snp}
+```{r cleaning_snp}
 snp = 
   read_csv("Data/snp.csv") |> 
   janitor::clean_names() |> 
@@ -71,8 +70,7 @@ snp =
     month = as.integer(month),
     day = as.integer(day),
     year = ifelse(as.integer(year) < 24, as.integer(year) + 2000, as.integer(year) + 1900),
-    month = case_match(
-      month,
+    month = case_match(month,
       1 ~ "January",
       2 ~ "February",
       3 ~ "March",
@@ -91,23 +89,49 @@ snp =
 ```
 
 ## Cleaning `unemployment` Data
-Third, tidying the data in `unemployment.csv` so that it can be merged with the other two datasets. 
+Third, tidying the data in `unemployment.csv` so that it can be merged with the other two datasets:
 
-This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
+* Switch from "wide" to "long" format - turn months into a single column, and the value of existing `months` column into a column called `percent_unemployment`
+* Converting month names to capitalized full names to match the format of other datasets
 
-
-```{r}
+```{r cleaning_unemployment}
 unemployment = 
   read_csv("Data/unemployment.csv") |> 
-  janitor::clean_names() 
+  janitor::clean_names() |> 
+  pivot_longer(jan:dec, names_to = "month", values_to = "percent_unemployment") |> 
+  mutate(
+    month = case_match(month,
+    "jan" ~ "January",
+    "feb" ~ "February",
+    "mar" ~ "March",
+    "apr" ~ "April",
+    "may" ~ "May",
+    "jun" ~ "June",
+    "jul" ~ "July",
+    "aug" ~ "August",
+    "sep" ~ "September",
+    "oct" ~ "October",
+    "nov" ~ "November",
+    "dec" ~ "December")
+  )
 ```
 
-
 ## Merging the Data Sets
-Join the datasets by merging snp into pols, and merging unemployment into the result.
+Joining the datasets by merging `snp` into `pols`, and then merging `unemployment` into the result. The resulting dataset is called `data_538`
+```{r merging_datasets}
 
-## Describing the Data Sets
-Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
+data_538 = left_join(pols, snp) |> 
+  left_join(x = _, y = unemployment)
+
+str(data_538)
+```
+
+## Description of the Combined Data Set
+
+The `pols` data has `r nrow(pols)` observations and `r ncol(pols)` variables and tells us about the party affiliation distribution (democrat or republican) for governors and senators for a given year from years `r pols |> pull(year) |> min()` to `r pols |> pull(year) |> max()`. It also tells us whether the sitting president was a democrat or republican. The `snp` data has `r nrow(snp)` observations and `r ncol(snp)` variables, ranging from years `r snp |> pull(year) |> min()` to `r snp |> pull(year) |> max()`. The `unemployment` data has `r nrow(unemployment)` observations and `r ncol(unemployment)` variables ranging from years `r unemployment |> pull(year) |> min()` to `r unemployment |> pull(year) |> max()`. In Januarys in or after 1975 in which a democrat was president, the **average unemployment rate was `r filter(data_538, month == "January", year >= 1975, president == "dem") |> pull(unemployment) |> mean() |> round(2)`**.  The average unemployment rate over the same time period in which a republican was president was `r filter(data_538, month == "January", year >= 1975, president == "gop") |> pull(unemployment) |> mean() |> round(2)`.
+
+
+Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables). >> Use inline R code to do this
 
 
 USE MR. TRASH WHEEL DATA FOR 2023 FOR HOMEWORK
