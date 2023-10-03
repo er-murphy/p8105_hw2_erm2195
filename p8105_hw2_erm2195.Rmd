@@ -8,9 +8,10 @@ date: "2023-10-02"
 Goal: merging the FiveThirtyEight `pols-month.csv`, `unemployment.csv`, and `snp.csv` data into a single data frame using year and month as keys across datasets.
 
 ## Loading Libraries
-First, loading the `tidyverse` library for use throughout the homework.
+First, loading the `tidyverse` and `readxl` libraries for use throughout the homework.
 ```{r library}
 library(tidyverse)
+library(readxl)
 ```
 
 ## Cleaning `pols-month` Data
@@ -91,14 +92,14 @@ snp =
 ## Cleaning `unemployment` Data
 Third, tidying the data in `unemployment.csv` so that it can be merged with the other two datasets:
 
-* Switch from "wide" to "long" format - turn months into a single column, and the value of existing `months` column into a column called `percent_unemployment`
+* Switch from "wide" to "long" format - turn months into a single column, and the value of existing `months` column into a column called `unemployment`
 * Converting month names to capitalized full names to match the format of other datasets
 
 ```{r cleaning_unemployment}
 unemployment = 
   read_csv("Data/unemployment.csv") |> 
   janitor::clean_names() |> 
-  pivot_longer(jan:dec, names_to = "month", values_to = "percent_unemployment") |> 
+  pivot_longer(jan:dec, names_to = "month", values_to = "unemployment") |> 
   mutate(
     month = case_match(month,
     "jan" ~ "January",
@@ -129,53 +130,49 @@ str(data_538)
 ## Description of the Combined Data Set
 The `pols` data set has `r nrow(pols)` observations and `r ncol(pols)` variables. It details the party affiliation distribution (democrat or republican) for governors and senators in a given year from `r pols |> pull(year) |> min()` to `r pols |> pull(year) |> max()`. It also specifies the political party of the president at that time. The `snp` data has `r nrow(snp)` observations and `r ncol(snp)` variables, and contains the closing value of the S&P index on the associated date. The included dates range from `r snp |> pull(year) |> min()` to `r snp |> pull(year) |> max()`. The `unemployment` data has `r nrow(unemployment)` observations and `r ncol(unemployment)` variables, and contains the percentage of unemployment on the associated date, ranging from years `r unemployment |> pull(year) |> min()` to `r unemployment |> pull(year) |> max()`. 
 
-From the merged `538_data` data set we can see that in January from 1975 onward, in years with a democratic president, the average unemployment rate was `r filter(data_538, month == "January", year >= 1975, president == "dem") |> pull(percent_unemployment) |> mean() |> round(2)`. For comparison, the average unemployment rate over the same time period in which a republican was president was `r filter(data_538, month == "January", year >= 1975, president == "gop") |> pull(percent_unemployment) |> mean() |> round(2)`.
+From the merged `538_data` data set we can see that in January from 1975 onward, in years with a democratic president, the average unemployment rate was `r filter(data_538, month == "January", year >= 1975, president == "dem") |> pull(unemployment) |> mean() |> round(2)`. For comparison, the average unemployment rate over the same time period in which a republican was president was `r filter(data_538, month == "January", year >= 1975, president == "gop") |> pull(unemployment) |> mean() |> round(2)`.
 
 
 # Problem 2
 
 ## Cleaning `Mr. Trash Wheel` Data
-First, reading in the data from the Excel file sheet `Mr. Trash Wheel`:
+First, reading in and cleaning the data from the Excel file sheet `Mr. Trash Wheel`:
 
 * Specifying the sheet in the Excel file
-* Omitting non-data entries like rows with notes / figures, and columns containing notes using arguments in read_excel
-
-More flexible way to skip the first row, last row, and right-most column?
-
-```{r reading_mister}
-mister = 
-  read_excel("Data/202309 Trash Wheel Collection Data.xlsx", sheet = "Mr. Trash Wheel", range = "A2:M586")
-```
-
-Then cleaning the `trash` data:
-
-* Specifying reasonable variable names
-* Omitting rows that don't include dumpster-specific data
+* Using arguments in `read_excel`, omitting non-data entries like rows with figures and columns containing notes. For the 2023 Mr. Trash Data, this includes the first row, the last row, and the `Homes` column.
+* Specifying reasonable variable names > I think that the names imported from the Excel document are already pretty reasonable. For the sake of brevity, dropping the units from weight and volume (as I would just document these units elsewhere, rather than in the variable name itself)
+* Omitting rows that don't include dumpster-specific data > I already removed rows that don't include dumpster-specific data as part of my import process with `read_excel`
 * Create a `homes_powered` for the approximate number of homes powered, based on the calculation described in the Homes powered note
 
 ```{r cleaning_mister}
-
+mister = 
+  read_excel("Data/202309 Trash Wheel Collection Data.xlsx", sheet = "Mr. Trash Wheel", range = "A2:M586", col_names = TRUE) |> 
+  janitor::clean_names() |> 
+  rename(weight = weight_tons, volume = volume_cubic_yards) |> 
+  mutate(
+    homes_powered = (weight * 500) / 30
+  )
 ```
 
-## Cleaning `Professor` Data
-First, reading in the data in `trash-wheel.csv`:
+## Cleaning `Professor Trash Wheel` Data
+Next, similarly reading in and cleaning the data from the Excel file sheet `Professor Trash Wheel`:
 
 * Specifying the sheet in the Excel file
-* Omitting non-data entries like rows with notes / figures, and columns containing notes using arguments in read_excel
-
-```{r read_trash}
-
-```
-
-Then cleaning the `trash` data:
-
-* Specifying reasonable variable names
-* Omitting rows that don't include dumpster-specific data
+* Using arguments in `read_excel`, omitting non-data entries like rows with figures and columns containing notes. As with the Mr. Trash Data, this includes the first row, the last row, and the `Homes` column.
+* Specifying reasonable variable names > I think that the names imported from the Excel document are already pretty reasonable. For the sake of brevity, dropping the units from weight and volume (as I would just document these units elsewhere, rather than in the variable name itself)
+* Omitting rows that don't include dumpster-specific data > I already removed rows that don't include dumpster-specific data as part of my import process with `read_excel`
 * Create a `homes_powered` for the approximate number of homes powered, based on the calculation described in the Homes powered note
 
-```{r}
-
+```{r cleaning_professor}
+professor = 
+  read_excel("Data/202309 Trash Wheel Collection Data.xlsx", sheet = "Professor Trash Wheel", range = "A2:L108", col_names = TRUE) |> 
+  janitor::clean_names() |> 
+  rename(weight = weight_tons, volume = volume_cubic_yards) |> 
+  mutate(
+    homes_powered = (weight * 500) / 30
+  )
 ```
+
 
 ## Cleaning `Gwynnda` Data
 First, reading in the data in `trash-wheel.csv`:
@@ -183,7 +180,7 @@ First, reading in the data in `trash-wheel.csv`:
 * Specifying the sheet in the Excel file
 * Omitting non-data entries like rows with notes / figures, and columns containing notes using arguments in read_excel
 
-```{r read_trash}
+```{r read_grynnda}
 
 ```
 
@@ -215,4 +212,7 @@ Use a similar process to import, clean, and organize the data for Professor Tras
 Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in the resulting dataset, and give examples of key variables. For available data, what was the total weight of trash collected by Professor Trash Wheel? What was the total number of cigarette butts collected by Gwynnda in July of 2021?
 
 
+# Questions
+Questions to return to if have time before homework submission:
 
+* More flexible way to skip the first row, last row, and right-most column when importing the Mr. Trash Wheel data?
