@@ -157,7 +157,7 @@ mister =
   drop_na(dumpster) |> 
   arrange(date) |> 
   mutate(
-    year = as.numeric(year),
+    year = as.integer(year),
     date = if_else(row_number() == 1, as_date("2020-01-20"), date),
     homes_powered = round((weight_tons * 500) / 30, digits = 0),
     sports_balls = round(sports_balls, digits = 0)
@@ -204,7 +204,7 @@ gwynnda =
 
 Now, adding a factor column to each dataset to identify the name of the source water-wheel (to help with identification post-merge). Then, binding the `professor` and `gwynnda` datasets together with the `mister` dataset to produce a single dataset. Finally, organizing the combined dataset to make it easier to understand by sorting it chronologically and re-arranging columns so that `sports_balls` is alongside the other types of trash, and `water_wheel` is moved to a more prominent location.
 
-```{r joining_mister_professor_gwynnda}
+```{r joining_trash_data}
 mister = mutate(mister, water_wheel = "Mr. Trash Wheel")
 professor = mutate(professor, water_wheel = "Professor Trash Wheel")
 gwynnda = mutate(gwynnda, water_wheel = "Gwynnda Trash Wheel")
@@ -221,6 +221,54 @@ trash_wheels_tidy =
 
 The `trash_wheels_tidy` data set has `r nrow(trash_wheels_tidy)` observations and `r ncol(trash_wheels_tidy)` variables. It details the contents of dumpsters of trash collected by `r nlevels(pull(trash_wheels_tidy, var = water_wheel))` water-wheel vessels in Baltimore's Inner Harbor on specific dates between `r trash_wheels_tidy |> pull(year) |> min()` and `r trash_wheels_tidy |> pull(year) |> max()`. Of the `r nlevels(pull(trash_wheels_tidy, var = water_wheel))` wheels, the greatest amount of trash collected by a single wheel is `r filter(trash_wheels_tidy, water_wheel == "Mr. Trash Wheel") |> pull(weight_tons) |> sum()` tons by Mr. Trash Wheel. In comparison, Professor Trash Wheel has only removed `r filter(trash_wheels_tidy, water_wheel == "Professor Trash Wheel") |> pull(weight_tons) |> sum()` total tons of trash from the harbor.
 
-In addition to the total weight and volume of trash collected, the dataset also tabulates counts of commonly-encountered debris. For example, in July 2021, Gwynnda Trash Wheel encountered `r format(filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(cigarette_butts) |> sum(), scientific = FALSE)` total cigarette butts. The good news is that those butts, in combination with the other trash she collected that month, is enough to power `r filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(homes_powered) |> sum()` homes.
+In addition to the total weight and volume of trash collected, the dataset also includes counts of commonly-encountered debris. For example, in July 2021, Gwynnda Trash Wheel encountered `r format(filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(cigarette_butts) |> sum(), scientific = FALSE)` total cigarette butts. The good news is that those butts, in combination with the other trash she collected that month, is enough to power `r filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(homes_powered) |> sum()` homes.
+
+# Problem 3
+
+## Background and Data Collection
+This problem uses data collected in an observational study to understand the trajectory of Alzheimer’s disease (AD) biomarkers. Study participants were free of Mild Cognitive Impairment (MCI), a stage between the expected cognitive decline of normal aging and the more serious decline of dementia, at the study baseline.
+
+Basic demographic information were measured at the study baseline. The study monitored the development of MCI and recorded the age of MCI onset during the follow-up period, with the last visit marking the end of follow-up. APOE4 is a variant of the apolipoprotein E gene, significantly associated with a higher risk of developing Alzheimer’s disease. The amyloid β
+ 42/40 ratio holds significant promise for diagnosing and predicting disease outcomes. This ratio undergoes changes over time and has been linked to the manifestation of clinical symptoms of Alzheimer’s disease.
+
+## Cleaning `Baseline` Data
+Importing, cleaning, and tidying the dataset of baseline demographics:
+
+* Skipping the first line of the CSV, which detail the codes for each variable
+* Renaming the `age_at_baseline` and `years_education` variables to more clearly describe their contents
+* Converting the `id` and `years_education` variables to integers
+* Converting the `age_at_baseline` and `age_at_onset` variables to numeric (not integers in order to preserve the months details)
+* Converting the `sex` and `apoe4` variables to factors based on the described codes for their values
+* Filtering out observations where the participant's age of MCI onset is younger than age at baseline, as these individuals have MCI that pre-dates the start of the study (and therefore don't meet the inclusion criteria)
+
+```{r cleaning_baseline}
+baseline = 
+  read_csv("Data/MCI_baseline.csv", skip = 1, na = ".") |> 
+  janitor::clean_names() |> 
+  rename(age_at_baseline = current_age, years_education = education) |> 
+  mutate (
+    id = as.integer(id),
+    age_at_baseline = as.numeric(age_at_baseline),
+    sex = as.factor(
+      case_match(sex,
+        1 ~ "male", 
+        0 ~ "female")),
+    years_education = as.integer(years_education),
+    apoe4 = as.factor(
+      case_match(apoe4,
+        1 ~ "carrier", 
+        0 ~ "non-carrier")),  
+    age_at_onset = as.numeric(age_at_onset)
+  ) |> 
+  filter((age_at_onset >= age_at_baseline) | is.na(age_at_onset))
+
+str(baseline)
+```
+
+Discuss important steps in the import process and relevant features of the dataset. How many participants were recruited, and of these how many develop MCI? What is the average baseline age? What proportion of women in the study are APOE4 carriers?
+
+
+
+
 
 
