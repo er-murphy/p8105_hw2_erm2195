@@ -8,7 +8,8 @@ date: "2023-10-02"
 Goal: merging the FiveThirtyEight `pols-month.csv`, `unemployment.csv`, and `snp.csv` data into a single data frame using year and month as keys across datasets.
 
 ## Loading Libraries
-First, loading the `tidyverse` and `readxl` libraries for use throughout the homework.
+First, loading the `tidyverse` and `readxl` libraries for use throughout the homework:
+
 ```{r library}
 library(tidyverse)
 library(readxl)
@@ -33,7 +34,7 @@ pols =
     year = as.integer(year),
     month = as.integer(month),
     day = as.integer(day),
-    president = ifelse(prez_dem > 0 , "dem", "gop"),
+    president = if_else(prez_dem != 0 , "dem", "gop"),
     month = case_match(month,
       1 ~ "January",
       2 ~ "February",
@@ -70,7 +71,7 @@ snp =
     year = as.integer(year),
     month = as.integer(month),
     day = as.integer(day),
-    year = ifelse(as.integer(year) < 24, as.integer(year) + 2000, as.integer(year) + 1900),
+    year = if_else(as.integer(year) < 24, as.integer(year) + 2000, as.integer(year) + 1900),
     month = case_match(month,
       1 ~ "January",
       2 ~ "February",
@@ -118,7 +119,8 @@ unemployment =
 ```
 
 ## Merging the Data Sets
-Joining the datasets by merging `snp` into `pols`, and then merging `unemployment` into the result. The resulting dataset is called `data_538`
+Joining the datasets by merging `snp` into `pols`, and then merging `unemployment` into the result. The resulting dataset is called `data_538`.
+
 ```{r merging_pols_snp_unemployment}
 
 data_538 = left_join(pols, snp) |> 
@@ -139,21 +141,26 @@ From the merged `538_data` data set we can see that in January from 1975 onward,
 First, reading in and cleaning the data from the Excel file sheet `Mr. Trash Wheel`:
 
 * Specifying the sheet in the Excel file
-* Using arguments in `read_excel`, omitting non-data entries like rows with figures and columns containing notes. For the 2023 Mr. Trash Data, this is the first row and the `Homes` column
-* Specifying reasonable variable names. I think that the names imported from the Excel document are already pretty reasonable. For the sake of brevity, dropping the units from weight and volume (as I would just document these units elsewhere, rather than in the variable name itself)
-* Omitting rows that don't include dumpster-specific data > removing the last row, which is a sum count of column values
-* Creating a `homes_powered` for the approximate number of homes powered, based on the calculation described in the Homes powered note
+* Using arguments in `read_excel`, omitting the first row and `Homes` column, given that they contain notes and Excel-based functions
+* Removing the last row, which is a sum count of column values and not dumpster-specific data, as well as any rows with no value for the `dumpster` value
+* Converting the year variable to be of numeric type, to better match with the other two datasets coming up
+* Fixing an issue where one row specifies a month and year of January 2020, but the associated date is 1/20/1900 rather than 1/20/2020
+* Creating a `homes_powered` for the approximate number of homes powered, based on the calculation described in the Homes powered note. Rounding this a whole number, which makes more intuitive sense than powering 0.27 of a home
+* Rounding the `sports_balls` column so that it's in whole numbers like the other trash count variables
 
-Note: Rather than specifying the columns to import in the read_excel statement, I think it makes more sense to import them all and then just drop the Homes column specifically. That way, this code will still work if additional columns are added in future years. But, doing it this way as the question specified that we should omit columns with non-data entries within the arguments of `read_excel`.
+Note: Rather than specifying the columns to import in the read_excel statement, I think it makes more sense to import them all and then just drop the Homes column specifically. That way, this code will still work if additional columns are added in future years. But, doing it this way as it seems like the right call, given that the question specified that we should omit columns with non-data entries within the arguments of `read_excel`.
 
 ```{r cleaning_mister}
 mister = 
   read_excel("Data/202309 Trash Wheel Collection Data.xlsx", sheet = "Mr. Trash Wheel", range = cell_cols("A:M"), skip = 1, col_names = TRUE) |> 
   janitor::clean_names() |> 
   drop_na(dumpster) |> 
-  rename(weight = weight_tons, volume = volume_cubic_yards) |>
+  arrange(date) |> 
   mutate(
-    homes_powered = (weight * 500) / 30
+    year = as.numeric(year),
+    date = if_else(row_number() == 1, as_date("2020-01-20"), date),
+    homes_powered = round((weight_tons * 500) / 30, digits = 0),
+    sports_balls = round(sports_balls, digits = 0)
   )
 ```
 
@@ -162,19 +169,16 @@ Next, similarly reading in and cleaning the data from the Excel file sheet `Prof
 
 * Specifying the sheet in the Excel file
 * Using arguments in `read_excel`, omitting non-data entries like rows with figures and columns containing notes. As with the Mr. Trash Data, this is the first row and the `Homes` column
-* Specifying reasonable variable names. I think that the names imported from the Excel document are already pretty reasonable. For the sake of brevity, dropping the units from weight and volume (as I would just document these units elsewhere, rather than in the variable name itself)
-* Omitting rows that don't include dumpster-specific data > removing the last row, which is a sum count of column values
-* Creating a `homes_powered` for the approximate number of homes powered, based on the calculation described in the Homes powered note
-
+* Removing the last row, which is a sum count of column values and not dumpster-specific data, as well as any rows with no value for the `dumpster` value
+* Creating a `homes_powered` for the approximate (whole) number of homes powered, based on the calculation described in the Homes powered note
 
 ```{r cleaning_professor}
 professor = 
   read_excel("Data/202309 Trash Wheel Collection Data.xlsx", sheet = "Professor Trash Wheel", range = cell_cols("A:L"), skip = 1, col_names = TRUE) |>
   janitor::clean_names() |> 
   drop_na(dumpster) |> 
-  rename(weight = weight_tons, volume = volume_cubic_yards) |> 
   mutate(
-    homes_powered = (weight * 500) / 30
+    homes_powered = round((weight_tons * 500) / 30, digits = 0)
   )
 ```
 
@@ -182,40 +186,41 @@ professor =
 Next, similarly reading in and cleaning the data from the Excel file sheet `Gwynnda Trash Wheel`:
 
 * Specifying the sheet in the Excel file
-* Using arguments in `read_excel`, omitting non-data entries like rows with figures and columns containing notes. As with the Mr. Trash Data, this is the first row and the `Homes` column
-* Specifying reasonable variable names. I think that the names imported from the Excel document are already pretty reasonable. For the sake of brevity, dropping the units from weight and volume (as I would just document these units elsewhere, rather than in the variable name itself)
-* Omitting rows that don't include dumpster-specific data
-* Create a `homes_powered` for the approximate number of homes powered, based on the calculation described in the Homes powered note
+* Using arguments in `read_excel`, omitting non-data entries like rows with figures and columns
+* Removing the last row, which is a sum count of column values and not dumpster-specific data, as well as any rows with no value for the `dumpster` value
+* Creating a `homes_powered` for the approximate (whole) number of homes powered, based on the calculation described in the Homes powered note
 
 ```{r cleaning_gywnnda}
 gwynnda = 
   read_excel("Data/202309 Trash Wheel Collection Data.xlsx", sheet = "Gwynnda Trash Wheel", range = cell_cols("A:L"), skip = 1, col_names = TRUE) |>
   janitor::clean_names() |> 
   drop_na(dumpster) |> 
-  rename(weight = weight_tons, volume = volume_cubic_yards) |> 
   mutate(
-    homes_powered = (weight * 500) / 30
+    homes_powered = round((weight_tons * 500) / 30, digits = 0)
   )
 ```
 
-## Merging the Datasets
+## Binding the Datasets
 
-Now, adding a column to each dataset to identify the dataset name (to help with identification post-merge). Then, combining the `professor` and `gwynnda` datasets with the `mister` dataset to produce a single dataset.
-```{r}
-mister = mutate(mister, dataset = "mister")
-professor = mutate(professor, dataset = "professor")
-gwynnda = mutate(gwynnda, dataset = "gwynnda")
+Now, adding a factor column to each dataset to identify the name of the source water-wheel (to help with identification post-merge). Then, binding the `professor` and `gwynnda` datasets together with the `mister` dataset to produce a single dataset. Finally, organizing the combined dataset to make it easier to understand by sorting it chronologically and re-arranging columns so that `sports_balls` is alongside the other types of trash, and `water_wheel` is moved to a more prominent location.
+
+```{r joining_mister_professor_gwynnda}
+mister = mutate(mister, water_wheel = "Mr. Trash Wheel")
+professor = mutate(professor, water_wheel = "Professor Trash Wheel")
+gwynnda = mutate(gwynnda, water_wheel = "Gwynnda Trash Wheel")
+
+trash_wheels_tidy = 
+  bind_rows(professor, gwynnda, mister) |> 
+  mutate(
+    water_wheel = as.factor(water_wheel)
+  ) |> 
+  arrange(date) |> 
+  select(dumpster, water_wheel, month:volume_cubic_yards, homes_powered, everything())
+
 ```
 
+The `trash_wheels_tidy` data set has `r nrow(trash_wheels_tidy)` observations and `r ncol(trash_wheels_tidy)` variables. It details the contents of dumpsters of trash collected by `r nlevels(pull(trash_wheels_tidy, var = water_wheel))` water-wheel vessels in Baltimore's Inner Harbor on specific dates between `r trash_wheels_tidy |> pull(year) |> min()` and `r trash_wheels_tidy |> pull(year) |> max()`. Of the `r nlevels(pull(trash_wheels_tidy, var = water_wheel))` wheels, the greatest amount of trash collected by a single wheel is `r filter(trash_wheels_tidy, water_wheel == "Mr. Trash Wheel") |> pull(weight_tons) |> sum()` tons by Mr. Trash Wheel. In comparison, Professor Trash Wheel has only removed `r filter(trash_wheels_tidy, water_wheel == "Professor Trash Wheel") |> pull(weight_tons) |> sum()` total tons of trash from the harbor.
+
+In addition to the total weight and volume of trash collected, the dataset also tabulates counts of commonly-encountered debris. For example, in July 2021, Gwynnda Trash Wheel encountered `r format(filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(cigarette_butts) |> sum(), scientific = FALSE)` total cigarette butts. The good news is that those butts, in combination with the other trash she collected that month, is enough to power `r filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(homes_powered) |> sum()` homes.
 
 
-
-Use a similar process to import, clean, and organize the data for Professor Trash Wheel and Gwynnda, and combine these with the Mr. Trash Wheel dataset to produce a single tidy dataset. To keep track of which Trash Wheel is which, you may need to add an additional variable to all datasets before combining.
-
-Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in the resulting dataset, and give examples of key variables. For available data, what was the total weight of trash collected by Professor Trash Wheel? What was the total number of cigarette butts collected by Gwynnda in July of 2021?
-
-
-# Questions
-Questions to return to if have time before homework submission:
-
-* More flexible way to skip the first row, last row, and right-most column when importing the Mr. Trash Wheel data?
