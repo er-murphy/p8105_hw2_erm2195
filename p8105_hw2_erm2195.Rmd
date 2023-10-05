@@ -129,7 +129,7 @@ data_538 = left_join(pols, snp) |>
 str(data_538)
 ```
 
-## Description of the Combined Data Set
+## Description of the Combined 538 Data Set
 The `pols` data set has `r nrow(pols)` observations and `r ncol(pols)` variables. It details the party affiliation distribution (democrat or republican) for governors and senators in a given year from `r pols |> pull(year) |> min()` to `r pols |> pull(year) |> max()`. It also specifies the political party of the president at that time. The `snp` data has `r nrow(snp)` observations and `r ncol(snp)` variables, and contains the closing value of the S&P index on the associated date. The included dates range from `r snp |> pull(year) |> min()` to `r snp |> pull(year) |> max()`. The `unemployment` data has `r nrow(unemployment)` observations and `r ncol(unemployment)` variables, and contains the percentage of unemployment on the associated date, ranging from years `r unemployment |> pull(year) |> min()` to `r unemployment |> pull(year) |> max()`. 
 
 From the merged `538_data` data set we can see that in January from 1975 onward, in years with a democratic president, the average unemployment rate was `r filter(data_538, month == "January", year >= 1975, president == "dem") |> pull(unemployment) |> mean() |> round(2)`. For comparison, the average unemployment rate over the same time period in which a republican was president was `r filter(data_538, month == "January", year >= 1975, president == "gop") |> pull(unemployment) |> mean() |> round(2)`.
@@ -219,6 +219,7 @@ trash_wheels_tidy =
 
 ```
 
+## Description of the Combined Trash Wheels Data Set
 The `trash_wheels_tidy` data set has `r nrow(trash_wheels_tidy)` observations and `r ncol(trash_wheels_tidy)` variables. It details the contents of dumpsters of trash collected by `r nlevels(pull(trash_wheels_tidy, var = water_wheel))` water-wheel vessels in Baltimore's Inner Harbor on specific dates between `r trash_wheels_tidy |> pull(year) |> min()` and `r trash_wheels_tidy |> pull(year) |> max()`. Of the `r nlevels(pull(trash_wheels_tidy, var = water_wheel))` wheels, the greatest amount of trash collected by a single wheel is `r filter(trash_wheels_tidy, water_wheel == "Mr. Trash Wheel") |> pull(weight_tons) |> sum()` tons by Mr. Trash Wheel. In comparison, Professor Trash Wheel has only removed `r filter(trash_wheels_tidy, water_wheel == "Professor Trash Wheel") |> pull(weight_tons) |> sum()` total tons of trash from the harbor.
 
 In addition to the total weight and volume of trash collected, the dataset also includes counts of commonly-encountered debris. For example, in July 2021, Gwynnda Trash Wheel encountered `r format(filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(cigarette_butts) |> sum(), scientific = FALSE)` total cigarette butts. The good news is that those butts, in combination with the other trash she collected that month, is enough to power `r filter(trash_wheels_tidy, water_wheel == "Gwynnda Trash Wheel", year == 2021, month == "July" ) |> pull(homes_powered) |> sum()` homes.
@@ -265,10 +266,43 @@ baseline =
 str(baseline)
 ```
 
-Discuss important steps in the import process and relevant features of the dataset. How many participants were recruited, and of these how many develop MCI? What is the average baseline age? What proportion of women in the study are APOE4 carriers?
+## Description of Study Inclusion Criteria and the Baseline Data Set
+The import process for the `baseline` data set included reading in the `MCI_baseline` csv file, renaming the `age` and `education` variables, and converting multiple variables into other types that were a better fit for their contents (for example, changing `sex` to a 2-level factor variable, rather than a character variable). Finally, individuals who were diagnosed with MCI at an earlier age than they had their baseline study visit were excluded, as their condition pre-dates the study period and therefore they don't meet eligibility criteria.
+
+From the resulting cleaned `baseline` data set we can see that `r nrow(baseline)` individuals free of Mild Cognitive Impairment (MCI) were recruited for this study of the trajectory of Alzheimer’s disease (AD) biomarkers. Of this `r nrow(baseline)`, `r filter(baseline, is.na(age_at_onset) == FALSE) |> nrow()` individuals developed MCI over the course of follow-up.The dataset contains `r (ncol(baseline))` columns of demographic information: `r names(baseline)`. The apoe4 variabel refers to a participant's carrier status for the APOE4 variant of the apolipoprotein E gene. The average age at study enrollment was `r baseline |> pull(age_at_baseline) |> mean() |> round(0)` years old, while the average age at MCI onset was `r filter(baseline, is.na(age_at_onset) == FALSE) |> pull(age_at_onset) |> mean() |> round(0)` years old. Among women, `r (filter(baseline, sex == "female", apoe4 == "carrier") |> nrow()) / (filter(baseline, sex == "female") |> nrow()) * 100 |> round(digits = 2)` percent were APOE4 carriers. 
+
+## Cleaning `Baseline` Data
+Similarly, importing, cleaning, and tidying the longitudinal dataset of biomarker values:
+
+* Skipping the first line of the CSV, which detail the codes for each variable
+* Renaming all variables to more clearly describe their contents and better match the baseline dataset
+* Switching from "wide" to "long" format - turning `visits` into a single column, and the corresponding values into a column called `amyloid_beta`
+* Converting the amyloid follow-up values to numeric values rounded to 7 decimal places, as this is the highest level of specificity common to all of the amyloid columns
+
+```{r cleaning_follow_up}
+follow_up = 
+  read_csv("Data/mci_amyloid.csv", skip = 1, na = "NA") |> 
+  janitor::clean_names() |> 
+  rename(id = study_id, year_0 = baseline, year_2 = time_2, year_4 = time_4, year_6 = time_6, year_8 = time_8) |> 
+  pivot_longer(starts_with("year"), names_to = "visit", values_to = "amyloid_beta") |> 
+  mutate(
+    amyloid_beta = as.numeric(amyloid_beta) |> 
+      round(7)
+  )
+
+str(follow_up)
+```
+
+## Description of Study Inclusion Criteria and the Baseline Data Set
+The import process for the `follow_up` data set included reading in the `mci_amyloid` csv file, renaming all of the variables to clarify that they contain values from biennual follow-up visits, and converting the values from said follow-up visits into true numbers rather than characters. Unlike the `baseline` data set, we don't need to worry about excluding participants with pre-existing MCI here, as this data set doesn't contain any details about the outcome, just the exposure (the amyloid beta biomarker).
+
+From the resulting cleaned `follow_up` data set we can see that `r filter(follow_up, is.na(amyloid_beta) == FALSE) |> nrow()` total measurements of participants' amyloid beta 42/40 ratios were collected. Among all participants, the mean amyloid beta 42/40 ratio was `r follow_up |> pull(amyloid_beta) |> mean(na.rm = TRUE) |> round(4)`, while the lowest measurement was `r follow_up |> pull(amyloid_beta) |> min(na.rm = TRUE) |> round(4)` and the highest was `r follow_up |> pull(amyloid_beta) |> max(na.rm = TRUE) |> round(4)`.
+
+## Checking on Presence in Multiple Datasets
+
+It doesn't look like all IDs are present in both the `baseline` and `follow_up` data sets. These participants are only in `baseline`: `r setdiff(pull(baseline, var = "id"), pull(follow_up, var = "id"))`; these participants are only in `follow_up`: `r setdiff(pull(follow_up, var = "id"), pull(baseline, var = "id"))`.
 
 
 
-
-
+Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained, and briefly describe the resulting dataset; export the result as a CSV to your data directory.
 
