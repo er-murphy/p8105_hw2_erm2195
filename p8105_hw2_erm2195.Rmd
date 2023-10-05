@@ -299,10 +299,23 @@ The import process for the `follow_up` data set included reading in the `mci_amy
 From the resulting cleaned `follow_up` data set we can see that `r filter(follow_up, is.na(amyloid_beta) == FALSE) |> nrow()` total measurements of participants' amyloid beta 42/40 ratios were collected. Among all participants, the mean amyloid beta 42/40 ratio was `r follow_up |> pull(amyloid_beta) |> mean(na.rm = TRUE) |> round(4)`, while the lowest measurement was `r follow_up |> pull(amyloid_beta) |> min(na.rm = TRUE) |> round(4)` and the highest was `r follow_up |> pull(amyloid_beta) |> max(na.rm = TRUE) |> round(4)`.
 
 ## Checking on Presence in Multiple Datasets
-
 It doesn't look like all IDs are present in both the `baseline` and `follow_up` data sets. These participants are only in `baseline`: `r setdiff(pull(baseline, var = "id"), pull(follow_up, var = "id"))`; these participants are only in `follow_up`: `r setdiff(pull(follow_up, var = "id"), pull(baseline, var = "id"))`.
 
+## Checking on Presence in Multiple Datasets
+Combining the `baseline` and `follow-up` datasets so that only participants who appear in both datasets are retained, and saving the result as the `mci_biomarkers` dataset:
 
+```{r}
+mci_biomarkers = inner_join(baseline, follow_up, by = "id")
 
-Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained, and briefly describe the resulting dataset; export the result as a CSV to your data directory.
+str(mci_biomarkers)
+```
 
+## Describing the Combined Dataset
+The `mci_biomarkers` dataset contains both demographic information and follow-up visit biomarker measurements for `r pull(mci_biomarkers, var = "id") |> unique() |> length()` individuals. It has a total of `r nrow(mci_biomarkers)` observations and contains `r ncol(mci_biomarkers)` variables. On average, each participant had `r ((filter(follow_up, is.na(amyloid_beta) == FALSE) |> nrow()) / (pull(mci_biomarkers, var = "id") |> unique() |> length())) |> round(2)` measurements taken of their amyloid beta 42/40 ratio. 
+
+## Exporting the `mci_biomarkers` Dataset as a CSV
+Exporting the `mci_biomarkers` dataset as a CSV to my Homework 3 Data folder:
+
+```{r}
+write_csv(mci_biomarkers, "Data/mci_biomarkers.csv", append = FALSE, col_names = TRUE)
+```
